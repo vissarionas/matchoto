@@ -1,40 +1,61 @@
 require 'sqlite3'
 
-Shoes.app(title: "abubaca",
-   width: 1000, height: 500, resizable: false) do
+Shoes.app(title: "matchoto", width: 1000, height: 600, resizable: false) do
 
   @all_files = []
   @current_val = nil
   @edit_val = ""
   @imported_list = nil
+  @select_btn = nil
+  @product_code = nil
 
- 	 @select_btn = button("Select folder") do
-	    @folder = ask_open_folder
-	    delete_db_if_exists
-	    create_database
-	  end
 
-	  button "Import TextFile" do
-	  	import_txt
-	  end
+  button " New Job" do
+    delete_db_if_exists
+    @select_btn.show()
+  end
 
-	  button "New code" do
-	    write_to_db
-	    @product_code = ask("Enter product code:")
-	    display_current_val
-	    @select_btn.remove
-	  end
+  @select_btn = button "Select folder" do
+    @working_folder = ask_open_folder
+    if !check_folder(@working_folder)
+      alert('Selected folder contains previous photos. Please format before starting a new job')
+    else
+      delete_db_if_exists
+  	  create_database
+      @select_btn.hide()
+      debug(@working_folder)
+    end
+	end
 
-	  button "Edit code" do
-	    @product_code << ask("Edit your code:")
-	  end
+  # button "Import TextFile" do
+  # 	import_txt
+  # end
 
-	  button "Finish" do
-	  	move(100 , 100)
-	    write_to_db
-	    # File.rename(@folder + '/' + @all_files[index].first, @folder + '/' + code + '.jpg')
-	  end
-	
+  button "New code" do
+    write_to_db
+    @product_code = ask("Enter product code:")
+    display_current_val
+    @select_btn.hide
+  end
+
+  # button "Edit code" do
+  #   @product_code << ask("Edit your code:")
+  # end
+
+  button "Finish" do
+    write_to_db
+    # File.rename(@folder + '/' + @all_files[index].first, @folder + '/' + code + '.jpg')
+  end
+
+  button "Rename" do
+    @db = SQLite3::Database.new 'default.db'
+    @chosen_folder = ask_open_folder
+    @rename_folder = Dir.mkdir @chosen_folder + "/renamed"
+    @db.execute("select filename from pairs").each do |file|
+      debug file
+    end
+  end
+
 	def display_current_val
     flow top: 50, left: 0 do
       caption "Current code:", stroke: "#fff"
@@ -49,24 +70,30 @@ Shoes.app(title: "abubaca",
   end
 
   def write_to_db
-    files = Dir.entries(@folder)
+    files = Dir.entries(@working_folder)
     files = files - ['.', '..', 'default.db']
     if !files.empty?
+      debug ('writing to db')
       (files - existing_files).each do |file|
-        @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}__A')"
-        @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}__B')"
+        @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}')"
+        # @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}__B')"
       end
     end
   end
 
   def create_database
-    @db = SQLite3::Database.new "#{@folder}/default.db"
+    # @db = SQLite3::Database.new "#{@folder}/default.db"
+    @db = SQLite3::Database.new "default.db"
     @db.execute "create table pairs (t1key INTEGER PRIMARY KEY, filename TEXT, product_code TEXT)"
   end
 
   def delete_db_if_exists
-    files = Dir.entries(@folder)
-    File.delete(@folder + '/default.db') if files.include?('default.db')
+    files = Dir.entries(".")
+    if files.include?('default.db')
+      if confirm('Delete current database?')
+        File.delete('default.db')
+      end
+    end
   end
 
   def import_txt
@@ -79,5 +106,9 @@ Shoes.app(title: "abubaca",
   	end
   end
 
+  def check_folder(folder)
+    files = Dir.entries(folder)- ['.', '..']
+    files.empty?
+  end
 
 end
