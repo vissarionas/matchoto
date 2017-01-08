@@ -1,164 +1,182 @@
+
 require 'sqlite3'
 require 'fileutils'
 
-Shoes.app(title: "matchoto", width: 1000, height: 500, resizable: false) do
+Shoes.app(title: "matchoto" , width: 1000) do
 
-  @all_files = []
-  @current_val = nil
-  @edit_val = ""
-  @imported_list = nil
-  @select_btn = nil
-  @product_code = nil
-  @rename_folder = nil
-  @db_view = nil
-  @time = Time.new.inspect
-
+  @imported_list = list_box
 
   @control_flow = flow do
-    button "view database" do
-      view_db
+    style height: 20
+    background "#c2c2a3"
+    @imported_list.remove()
+
+    @reset_button = button "RESET" do
+      delete_db_if_exists
     end
 
-    button "New Job" do
-      if confirm ("Starting a new job, will erase any previous work. \nAre you sure?")
-        place_ok_folder
-        delete_db_if_exists
-        @select_btn.show()
-        @report_view=caption @time+" --> Created folders 'OK' and 'renamed'. Deleted previous database\n"
-      end
+    @view_db_button = button "view database" do
+      view_db
     end
 
     @select_btn = button "Select folder" do
       @working_folder = ask_open_folder
-      if !check_folder(@working_folder)
+      if !folder_is_empty(@working_folder)
         alert("Selected folder contains previous photos. \nPlease format before starting a new job")
-        @report_view = caption @time+" --> Working folder is not empty. Please empty working folder\n"
       else
         delete_db_if_exists
     	  create_database
         @select_btn.hide()
-        @report_view = caption @time+" --> Previous database deleted. New database created. Selected working folder is "+@working_folder+"\n"
+        @new_code_button.show()
+        @import_button.show()
+        @view_flow.caption time+" --> Selected working folder path: "+@working_folder+"\n" , stroke: "#fff"
       end
   	end
 
-    # button "Import TextFile" do
-    # 	import_txt
-    # end
+    @import_button = button "Import TextFile" do
+      import_products
+    end
 
-    button "New code" do
+    @new_code_button = button "New code" do
       write_to_db
       @product_code = ask("Enter product code:")
-      @select_btn.hide
-      @report_view = caption @time+" --> Product code = "+@product_code+".\n"
+      @view_flow.caption time+" --> Current product code: "+@product_code+".\n"
+      @finish_button.show()
     end
 
-    # button "Edit code" do
-    #   @product_code << ask("Edit your code:")
-    # end
-
-    button "Finish" do
+    @finish_button = button "Finish" do
+      @rename_button.show()
       write_to_db
-      @report_view = caption @time+" --> Job is finished."
+      @view_flow.caption time+" --> Job is finished.\n" , stroke: "#fff"
+      backup_db
     end
 
-    button "Rename" do
-      rename
-    end
-  end
-
-  @caption_flow = flow do
-   @report_view
-  end
-
-  def place_ok_folder
-    files = Dir.entries(".")
-    if files.include?('OK')
-      FileUtils.rm_rf('OK')
-    end
-    Dir.mkdir "./OK"
-    Dir.mkdir 'OK/renamed'
-  end
-
-	# def display_current_val
-  #   flow top: 50, left: 0 do
-  #     caption "Current code:", stroke: "#fff"
-  #     @current_val.remove unless @current_val == nil
-  #     @current_val = caption @product_code, stroke: "#fff"
-  #   end
-  # end
-
-  def existing_files
-    results = @db.execute "select filename from pairs"
-    results.flatten
-  end
-
-  def write_to_db
-    files = Dir.entries(@working_folder)
-    files = files - ['.', '..', 'default.db']
-    if !files.empty?
-      debug ('writing to db')
-      (files - existing_files).each do |file|
-        @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}')"
-        # @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}__B')"
+    @rename_button = button "Rename" do
+      @final_photos_folder = ask_open_folder
+      if folder_is_empty(@final_photos_folder)
+        alert("Selected folder is empty")
+      else
+        rename
       end
     end
-  end
 
-  def create_database
-    # @db = SQLite3::Database.new "#{@folder}/default.db"
-    @db = SQLite3::Database.new "default.db"
-    @db.execute "create table pairs (t1key INTEGER PRIMARY KEY, filename TEXT, product_code TEXT)"
-  end
 
-  def delete_db_if_exists
-    files = Dir.entries(".")
-    if files.include?('default.db')
-      File.delete('default.db')
+
+    def existing_files
+      results = @db.execute "select filename from pairs"
+      results.flatten
     end
-  end
 
-  def import_txt
-  	filename = ask_open_file
-  	imported = File.read(filename).split(" ")
-  	@imported_list = list_box items: imported
-  	@imported_list.change do
-  		@product_code = @imported_list.text
-  		display_current_val
-  	end
-  end
-
-  def check_folder(folder)
-    files = Dir.entries(folder)- ['.', '..']
-    files.empty?
-  end
-
-  def rename
-    files = Dir.entries('OK')-['.','..','renamed']
-    if !files.empty?
-      @db = SQLite3::Database.new 'default.db'
-      @db.execute("select filename , product_code from pairs").each do |file|
-        if files.include?(file[0])
-          FileUtils.cp('OK/'+file[0] , 'OK/renamed/'+file[0])
-          FileUtils.mv('OK/renamed/'+file[0] , 'OK/renamed/'+file[1]+'.jpg')
-          @report_view = caption "OK/renamed/"+file[0] +"renamed to" + "OK/renamed/"+file[1]+".jpg"
+    def write_to_db
+      files = Dir.entries(@working_folder)
+      files = files - ['.', '..']
+      if !files.empty?
+        debug ('writing to db')
+        (files - existing_files).each do |file|
+          @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}')"
+          # @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}__B')"
+          @view_flow.caption time+ " Inserted pair: #{file} --> #{@product_code}\n" , stroke: "#fff"
         end
       end
-    else
-      alert ("Folder 'OK' is empty. \nNothing to rename.")
     end
-  end
 
-  def view_db
-    window title: "database contents" do
-      files = Dir.entries('.')
-      if files.include?('default.db')
+    def create_database
+      # @db = SQLite3::Database.new "#{@folder}/default.db"
+      @db = SQLite3::Database.new "default.db"
+      @db.execute "create table pairs (t1key INTEGER PRIMARY KEY, filename TEXT, product_code TEXT)"
+      @reset_button.show()
+      @view_db_button.show()
+    end
+
+    def delete_db_if_exists
+      if db_exists
+        if confirm ("Starting a new job, will erase any previous work. \nAre you sure?")
+          FileUtils.rm('default.db')
+          @view_flow.caption time+" --> Database deleted\n" , stroke: "#fff"
+          hide_on_reset
+        end
+      end
+    end
+
+    def rename
+      FileUtils.mkdir @final_photos_folder+"/OK"
+      files = Dir.entries(@final_photos_folder)-['.','..','OK']
+      if !files.empty?
         @db = SQLite3::Database.new 'default.db'
         @db.execute("select filename , product_code from pairs").each do |file|
-          @db_view = caption (file[0] +" > "+file[1]+"\n")
+          if files.include?(file[0])
+            FileUtils.cp(@final_photos_folder+'/'+file[0] , @final_photos_folder+'/OK/'+file[0])
+            FileUtils.mv(@final_photos_folder+'/OK/'+file[0] , @final_photos_folder+'/OK/'+file[1]+'.jpg')
+            @view_flow.caption time+" "+file[0] +" renamed to " + "OK/"+file[1]+".jpg\n" , stroke: "#fff"
+          end
         end
-      else
-        @db_view = caption "empty/no database"
       end
     end
+
+    def view_db
+      if db_exists
+        window title: "database contents" do
+          @db = SQLite3::Database.new 'default.db'
+          @db.execute("select filename , product_code from pairs").each do |file|
+            @db_view = caption (file[0] +" > "+file[1]+"\n")
+          end
+        end
+      end
+    end
+
+
+    def hide_on_reset
+      @view_flow.clear()
+      @select_btn.show()
+      @import_button.hide()
+      @view_db_button.hide()
+      @new_code_button.hide()
+      @finish_button.hide()
+      @rename_button.hide()
+      @reset_button.hide()
+      @imported_list.remove()
+    end
+
+    def backup_db
+      FileUtils.cp('default.db' , '.')
+    end
+
+    def time
+      time = Time.now
+      time.strftime("%H:%M:%S")
+    end
+
+    def folder_is_empty(folder)
+      files = Dir.entries(folder)- ['.', '..']
+      files.empty?
+    end
+
+    def db_exists()
+      files = Dir.entries('.')
+      files.include?('default.db')
+    end
+
+    def import_products
+      @imported_list.remove()
+      filename = ask_open_file
+      @imported_products = File.read(filename).split(" ")
+      @view_flow.caption time+" --> "+@imported_products.size.to_s+" products imported" , stroke: "#fff"
+      @control_flow.append do
+        @imported_list = list_box items: @imported_products
+        @imported_list.change do
+          @finish_button.show()
+          write_to_db
+          @product_code = @imported_list.text
+          @view_flow.caption time+" --> Current product code: "+@product_code+".\n" , stroke: "#fff"
+        end
+      end
+    end
+
+
   end
+
+  @view_flow = stack do
+    background "#c2c2a3"
+  end
+
 end
