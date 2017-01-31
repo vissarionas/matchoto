@@ -2,13 +2,12 @@
 require 'sqlite3'
 require 'fileutils'
 
-Shoes.app(title: "matchoto" , width: 1000) do
+Shoes.app(title: "matchoto") do
 
   @imported_list = list_box
 
   @control_flow = flow do
     style height: 20
-    background "#c2c2a3"
     @imported_list.remove()
 
     @reset_button = button "RESET" do
@@ -29,7 +28,7 @@ Shoes.app(title: "matchoto" , width: 1000) do
         @select_btn.hide()
         @new_code_button.show()
         @import_button.show()
-        @view_flow.caption time+" --> Selected working folder path: "+@working_folder+"\n" , stroke: "#fff"
+        @view_flow.caption time+" --> Selected working folder path: "+@working_folder+"\n" , stroke: "#fff" , size: "12"
       end
   	end
 
@@ -40,14 +39,14 @@ Shoes.app(title: "matchoto" , width: 1000) do
     @new_code_button = button "New code" do
       write_to_db
       @product_code = ask("Enter product code:")
-      @view_flow.caption time+" --> Current product code: "+@product_code+".\n"
+      @view_flow.caption time+" --> Current product code: "+@product_code+".\n" , stroke: "#fff" , size: "12"
       @finish_button.show()
     end
 
     @finish_button = button "Finish" do
       @rename_button.show()
       write_to_db
-      @view_flow.caption time+" --> Job is finished.\n" , stroke: "#fff"
+      @view_flow.caption time+" --> Job is finished.\n" , stroke: "#fff" , size: "12"
       backup_db
     end
 
@@ -75,7 +74,7 @@ Shoes.app(title: "matchoto" , width: 1000) do
         (files - existing_files).each do |file|
           @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}')"
           # @db.execute "insert into pairs (filename, product_code) values ('#{file}', '#{@product_code}__B')"
-          @view_flow.caption time+ " Inserted pair: #{file} --> #{@product_code}\n" , stroke: "#fff"
+          @view_flow.caption time+ " Inserted pair: #{file} --> #{@product_code}\n" , stroke: "#fff" , size: "12"
         end
       end
     end
@@ -92,7 +91,6 @@ Shoes.app(title: "matchoto" , width: 1000) do
       if db_exists
         if confirm ("Starting a new job, will erase any previous work. \nAre you sure?")
           FileUtils.rm('default.db')
-          @view_flow.caption time+" --> Database deleted\n" , stroke: "#fff"
           hide_on_reset
         end
       end
@@ -107,7 +105,7 @@ Shoes.app(title: "matchoto" , width: 1000) do
           if files.include?(file[0])
             FileUtils.cp(@final_photos_folder+'/'+file[0] , @final_photos_folder+'/OK/'+file[0])
             FileUtils.mv(@final_photos_folder+'/OK/'+file[0] , @final_photos_folder+'/OK/'+file[1]+'.jpg')
-            @view_flow.caption time+" "+file[0] +" renamed to " + "OK/"+file[1]+".jpg\n" , stroke: "#fff"
+            @view_flow.caption time+" "+file[0] +" renamed to " + "OK/"+file[1]+".jpg\n" , stroke: "#fff" , size: "12"
           end
         end
       end
@@ -135,6 +133,7 @@ Shoes.app(title: "matchoto" , width: 1000) do
       @rename_button.hide()
       @reset_button.hide()
       @imported_list.remove()
+      @view_flow.caption time+" --> Job reseted\n" , stroke: "#fff" , size: "12"
     end
 
     def backup_db
@@ -160,14 +159,14 @@ Shoes.app(title: "matchoto" , width: 1000) do
       @imported_list.remove()
       filename = ask_open_file
       @imported_products = File.read(filename).split(" ")
-      @view_flow.caption time+" --> "+@imported_products.size.to_s+" products imported" , stroke: "#fff"
+      @view_flow.caption time+" --> "+@imported_products.size.to_s+" products imported" , stroke: "#fff" , size: "12"
       @control_flow.append do
         @imported_list = list_box items: @imported_products
         @imported_list.change do
           @finish_button.show()
           write_to_db
           @product_code = @imported_list.text
-          @view_flow.caption time+" --> Current product code: "+@product_code+".\n" , stroke: "#fff"
+          @view_flow.caption time+" --> Current product code: "+@product_code+".\n" , stroke: "#fff" , size: "12"
         end
       end
     end
@@ -176,7 +175,7 @@ Shoes.app(title: "matchoto" , width: 1000) do
   end
 
   @view_flow = stack do
-    background "#c2c2a3"
+    caption "..."
   end
 
 end
